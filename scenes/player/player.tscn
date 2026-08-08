@@ -1,0 +1,93 @@
+[gd_scene format=3 uid="uid://3m5ee6ub3osp"]
+
+[ext_resource type="Script" uid="uid://6dvqpkm0mjes" path="res://scripts/player/player_controller.gd" id="1_controller"]
+[ext_resource type="PackedScene" path="res://scenes/ui/mobile_controls.tscn" id="4_mobile_controls"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_player"]
+radius = 0.23339844
+height = 1.2415283
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_player"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:profile_index")
+properties/2/spawn = true
+properties/2/replication_mode = 2
+properties/3/path = NodePath(".:net_anim")
+properties/3/spawn = true
+properties/3/replication_mode = 2
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_health"]
+properties/0/path = NodePath(".:health")
+properties/0/spawn = true
+properties/0/replication_mode = 2
+
+[node name="Player" type="CharacterBody3D" unique_id=1929018057]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.64001036, 0)
+script = ExtResource("1_controller")
+
+[node name="ModelRoot" type="Node3D" parent="." unique_id=1546811126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2401554, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=409243737]
+shape = SubResource("CapsuleShape_player")
+
+[node name="Head" type="Node3D" parent="." unique_id=1748095943]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="Head" unique_id=391284979]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14652085, 0)
+spring_length = 2.44
+margin = 0.15
+
+[node name="Camera3D" type="Camera3D" parent="Head/SpringArm3D" unique_id=1970635457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0785081, -0.00012385845)
+near = 0.08
+
+[node name="MobileControlsLayer" type="CanvasLayer" parent="." unique_id=281645266]
+layer = 20
+
+[node name="MobileControls" parent="MobileControlsLayer" unique_id=594892625 instance=ExtResource("4_mobile_controls")]
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=111111111]
+replication_config = SubResource("SceneReplicationConfig_player")
+
+[node name="HealthSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1223923227]
+replication_config = SubResource("SceneReplicationConfig_health")
+
+[node name="HealthLayer" type="CanvasLayer" parent="." unique_id=150984025]
+layer = 15
+
+[node name="HealthMargin" type="MarginContainer" parent="HealthLayer" unique_id=960616282]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -238.0
+offset_top = 18.0
+offset_right = -18.0
+offset_bottom = 72.0
+grow_horizontal = 0
+
+[node name="HealthPanel" type="PanelContainer" parent="HealthLayer/HealthMargin" unique_id=818522556]
+layout_mode = 2
+
+[node name="HealthContent" type="VBoxContainer" parent="HealthLayer/HealthMargin/HealthPanel" unique_id=1528142178]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HealthLabel" type="Label" parent="HealthLayer/HealthMargin/HealthPanel/HealthContent" unique_id=1300234872]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Health 100 / 100"
+horizontal_alignment = 1
+
+[node name="HealthBar" type="ProgressBar" parent="HealthLayer/HealthMargin/HealthPanel/HealthContent" unique_id=649857983]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 18)
+layout_mode = 2
+value = 100.0
+show_percentage = false

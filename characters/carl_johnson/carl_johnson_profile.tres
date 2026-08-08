@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CharacterProfile" format=3 uid="uid://x1p4e72ml3nf"]
+
+[ext_resource type="Script" uid="uid://cphma5lx7muin" path="res://scripts/characters/character_profile.gd" id="1_profile"]
+[ext_resource type="PackedScene" uid="uid://d33xxl2jf7bgp" path="res://characters/carl_johnson/carl_johnson.tscn" id="2_player"]
+
+[resource]
+script = ExtResource("1_profile")
+display_name = "Carl Johnson"
+player_scene = ExtResource("2_player")

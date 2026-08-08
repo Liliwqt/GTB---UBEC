@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://c6rdpykmga4vm"]
+
+[ext_resource type="Script" uid="uid://diy68wb8algox" path="res://scripts/npcs/wandering_npc.gd" id="1_npc"]
+[ext_resource type="PackedScene" path="res://characters/liliw/liliw_model.tscn" id="2_character"]
+[ext_resource type="AnimationLibrary" uid="uid://c1kddm0qabok5" path="res://animations/humanoid/humanoid_animation_library.tres" id="3_animations"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_npc"]
+radius = 0.23339844
+height = 1.2415283
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_npc"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:velocity")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+
+[node name="WanderingLiliwNPC" type="CharacterBody3D" unique_id=2093944086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.600852, 0)
+floor_snap_length = 0.3
+script = ExtResource("1_npc")
+
+[node name="ModelRoot" type="Node3D" parent="." unique_id=2120778346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.6263096, 0)
+
+[node name="CharacterModel" parent="ModelRoot" unique_id=94163865 instance=ExtResource("2_character")]
+transform = Transform3D(-1.0580522, 0, 0.038660657, 0, 1.123925, 0, -0.03403478, 0, -1.2018646, 0.005073428, -0.4232018, -0.06305456)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1166607883]
+root_node = NodePath("../ModelRoot/CharacterModel")
+root_motion_track = NodePath("Skeleton3D:mixamorig_Hips")
+libraries/ = ExtResource("3_animations")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=990269558]
+transform = Transform3D(1.0923884, 0, 0, 0, 1, 0, 0, 0, 0.6703726, 0, 0.18551016, -0.074798584)
+shape = SubResource("CapsuleShape_npc")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=876543210]
+replication_interval = 0.05
+replication_config = SubResource("SceneReplicationConfig_npc")

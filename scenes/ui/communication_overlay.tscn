@@ -1,0 +1,75 @@
+[gd_scene format=3 uid="uid://dofwpangscqyp"]
+
+[ext_resource type="Script" uid="uid://def2lv6fled64" path="res://scripts/ui/communication_overlay.gd" id="1_overlay"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_chat"]
+bg_color = Color(0.035, 0.05, 0.075, 0.84)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.33, 0.48, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="CommunicationOverlay" type="CanvasLayer" unique_id=85177883]
+layer = 30
+script = ExtResource("1_overlay")
+
+[node name="ChatMargin" type="MarginContainer" parent="." unique_id=2116254340 groups=["touch_input_blocker"]]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 476.0
+offset_bottom = 270.0
+
+[node name="ChatPanel" type="PanelContainer" parent="ChatMargin" unique_id=1533960728]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_chat")
+
+[node name="ChatContent" type="VBoxContainer" parent="ChatMargin/ChatPanel" unique_id=857882308]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="History" type="RichTextLabel" parent="ChatMargin/ChatPanel/ChatContent" unique_id=1331129909]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 2
+bbcode_enabled = true
+scroll_following = true
+selection_enabled = true
+
+[node name="MessageRow" type="HBoxContainer" parent="ChatMargin/ChatPanel/ChatContent" unique_id=790354344]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="MessageInput" type="LineEdit" parent="ChatMargin/ChatPanel/ChatContent/MessageRow" unique_id=1872452313]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Press Enter to chat"
+max_length = 240
+
+[node name="SendButton" type="Button" parent="ChatMargin/ChatPanel/ChatContent/MessageRow" unique_id=1080030494]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Send"
+
+[node name="VoiceRow" type="HBoxContainer" parent="ChatMargin/ChatPanel/ChatContent" unique_id=1060735925]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="VoiceStatus" type="Label" parent="ChatMargin/ChatPanel/ChatContent/VoiceRow" unique_id=1529754510]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Voice ready — hold V"
+
+[node name="MicrophoneButton" type="Button" parent="ChatMargin/ChatPanel/ChatContent/VoiceRow" unique_id=1374983194]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(118, 36)
+layout_mode = 2
+text = "Hold to Talk"

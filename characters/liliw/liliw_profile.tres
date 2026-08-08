@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CharacterProfile" format=3 uid="uid://c5sylk0wu0hg0"]
+
+[ext_resource type="Script" uid="uid://cphma5lx7muin" path="res://scripts/characters/character_profile.gd" id="1_profile"]
+[ext_resource type="PackedScene" uid="uid://dbtwo3yti5ccv" path="res://characters/liliw/liliw.tscn" id="2_player"]
+
+[resource]
+script = ExtResource("1_profile")
+display_name = "Liliw"
+player_scene = ExtResource("2_player")

@@ -1,0 +1,31 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Blender backups
+*.blend1
+
+# Export artifacts
+*.apk
+*.idsig
+*.aab
+*.x86_64
+*.pck
+*.wasm
+Release/
+build/
+
+# Editor temporary files
+*.swp
+
+# Source / DCC directories (contain .gdignore)
+**/source/
+
+# Archive directory (legacy assets)
+archive/
+
+# Third-party vendor packs
+third_party/
+
+# Tool scripts (offline utilities, not runtime)
+tools/
