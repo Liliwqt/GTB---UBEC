@@ -16,11 +16,120 @@ enum Mode { OFFLINE, HOST, CLIENT, DEDICATED_SERVER }
 var mode: Mode = Mode.OFFLINE
 
 const DEFAULT_PORT := 7777
+## Fallback address used when no other source is configured. Deliberately
+## empty: a deployment endpoint must not be committed to a public repository,
+## because that exposes the server's address to anyone who reads the source or
+## the repository history.
+##
+## Resolution order, highest priority first:
+##   1. `--server-address=<host>` command-line argument (development only).
+##   2. `LEYLIW_SERVER_ADDRESS` environment variable (deployment).
+##   3. `user://server_address.cfg` (per-user override on the local machine).
+##   4. `res://server_address.cfg` (packaged into client exports; copy
+##      `server_address.cfg.example` and keep the copy out of git).
+##   5. This constant, which is empty by design.
+const CONFIGURED_SERVER_ADDRESS := ""
+const SERVER_ADDRESS_ENV_VAR := "LEYLIW_SERVER_ADDRESS"
+const SERVER_PORT_ENV_VAR := "LEYLIW_SERVER_PORT"
+const SERVER_ADDRESS_CONFIG_PATH := "res://server_address.cfg"
+const SERVER_ADDRESS_USER_CONFIG_PATH := "user://server_address.cfg"
+const PUBLIC_SERVER_PORT := DEFAULT_PORT
 const MAX_PLAYERS := 16
 const CONNECTION_TIMEOUT_SECONDS := 8.0
 const WORLD_SCENE := "res://scenes/worlds/ley_liw.tscn"
 
 var _connection_timer: Timer = null
+var last_connection_error := ""
+
+
+## Returns the production server address, or an empty string when no address
+## has been configured. A command-line override is retained for
+## editor/development testing without exposing an address field to players.
+func get_public_server_address() -> String:
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--server-address="):
+			var address := argument.trim_prefix("--server-address=").strip_edges()
+			if not address.is_empty():
+				return address
+
+	var environment_address := OS.get_environment(SERVER_ADDRESS_ENV_VAR).strip_edges()
+	if not environment_address.is_empty():
+		return environment_address
+
+	var user_address := _read_address_from_config(SERVER_ADDRESS_USER_CONFIG_PATH)
+	if not user_address.is_empty():
+		return user_address
+
+	var packaged_address := _read_address_from_config(SERVER_ADDRESS_CONFIG_PATH)
+	if not packaged_address.is_empty():
+		return packaged_address
+
+	return CONFIGURED_SERVER_ADDRESS
+
+
+## Returns [code]true[/code] when a server address has been configured through
+## any supported source.
+func has_public_server_address() -> bool:
+	return not get_public_server_address().is_empty()
+
+
+## Returns the production server UDP port, with optional development-only
+## overrides matching the dedicated server's --port argument.
+func get_public_server_port() -> int:
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("--server-port="):
+			continue
+		var requested_port := argument.trim_prefix("--server-port=").to_int()
+		if requested_port >= 1 and requested_port <= 65535:
+			return requested_port
+
+	var environment_port := OS.get_environment(SERVER_PORT_ENV_VAR).strip_edges()
+	if not environment_port.is_empty():
+		var environment_value := environment_port.to_int()
+		if environment_value >= 1 and environment_value <= 65535:
+			return environment_value
+
+	var user_port := _read_port_from_config(SERVER_ADDRESS_USER_CONFIG_PATH)
+	if user_port > 0:
+		return user_port
+
+	var packaged_port := _read_port_from_config(SERVER_ADDRESS_CONFIG_PATH)
+	if packaged_port > 0:
+		return packaged_port
+
+	return PUBLIC_SERVER_PORT
+
+
+## Reads the `server/address` entry from a ConfigFile-formatted address file.
+## Returns an empty string when the file is missing, unreadable, or does not
+## contain a non-empty string address.
+func _read_address_from_config(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		return ""
+	var config := ConfigFile.new()
+	if config.load(path) != OK:
+		return ""
+	var value: Variant = config.get_value("server", "address", "")
+	if typeof(value) != TYPE_STRING:
+		return ""
+	return str(value).strip_edges()
+
+
+## Reads the `server/port` entry from a ConfigFile-formatted address file.
+## Returns 0 when the file is missing, unreadable, or the port is out of range.
+func _read_port_from_config(path: String) -> int:
+	if not FileAccess.file_exists(path):
+		return 0
+	var config := ConfigFile.new()
+	if config.load(path) != OK:
+		return 0
+	var value: Variant = config.get_value("server", "port", 0)
+	if typeof(value) != TYPE_INT:
+		return 0
+	var port := int(value)
+	if port < 1 or port > 65535:
+		return 0
+	return port
 
 
 func _ready() -> void:
@@ -87,6 +196,7 @@ func start_dedicated_server(port: int = DEFAULT_PORT) -> Error:
 ## Begin connecting to a server at [param address]:[param port]. Returns only
 ## the immediate ENet setup result; final success remains signal-driven.
 func start_client(address: String, port: int = DEFAULT_PORT) -> Error:
+	last_connection_error = ""
 	start_offline()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_client(address, port)
@@ -159,6 +269,9 @@ func _on_connected_to_server() -> void:
 
 func _on_connection_failed() -> void:
 	_connection_timer.stop()
+	last_connection_error = (
+		"The open-world server is unavailable. Please try again."
+	)
 	start_offline()
 	connection_failed.emit()
 

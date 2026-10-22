@@ -288,10 +288,9 @@ stop_idle_blend_time
 
 ## Validation
 
-- Godot 4.7.1 is available at
-  `/home/jhonryl-pamaybay/Godot_v4.7.1-stable_linux.x86_64`.
+- Godot 4.7.1 is available at `GODOT_BIN` (set this to your Godot binary path).
 - Run the headless singleplayer regression check with:
-  `/home/jhonryl-pamaybay/Godot_v4.7.1-stable_linux.x86_64 --headless --path . res://tools/smoke_test_singleplayer.tscn`
+  `$GODOT_BIN --headless --path . res://tools/smoke_test_singleplayer.tscn`
 - The test verifies offline peer creation, local player spawning, multiplayer
   authority, input-map completeness, replication configuration, activation of
   the player's camera, actual movement, offline chat, and voice packet encoding.

@@ -13,6 +13,15 @@ const VOICE_PACKET_FRAMES := 320
 const VOICE_PACKET_BYTES := VOICE_PACKET_FRAMES * 2
 const MAX_CAPTURE_PACKETS_PER_FRAME := 3
 const MAX_VOICE_PACKETS_PER_SECOND := 60
+## Maximum bytes of voice payload one peer may relay per second. The packet
+## rate limit alone still lets a peer consume tens of KB/s of server uplink
+## and re-broadcast bandwidth to every other player, so the byte rate is
+## capped independently. 48 KB/s allows the intended 16 kHz mono stream
+## (32 KB/s) with headroom for packet overhead.
+const MAX_VOICE_BYTES_PER_SECOND := 48 * 1024
+## A peer that exceeds the byte budget is disconnected rather than merely
+## throttled, because a flooding peer can starve the server for everyone else.
+const VOICE_FLOOD_GRACE_PERIODS := 3
 
 @onready var overlay: Variant = $CommunicationOverlay
 
@@ -23,6 +32,8 @@ var _voice_players: Dictionary[int, AudioStreamPlayer] = {}
 var _voice_playbacks: Dictionary[int, AudioStreamGeneratorPlayback] = {}
 var _voice_window_started_at: Dictionary[int, int] = {}
 var _voice_packets_in_window: Dictionary[int, int] = {}
+var _voice_bytes_in_window: Dictionary[int, int] = {}
+var _voice_over_budget_periods: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -117,6 +128,9 @@ func _submit_voice(packet: PackedByteArray) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _can_relay_voice(sender_id):
 		return
+	if not _is_within_voice_byte_budget(sender_id, packet.size()):
+		_register_voice_budget_violation(sender_id)
+		return
 	_relay_voice.rpc(sender_id, packet)
 
 
@@ -195,6 +209,12 @@ func _remove_voice_peer(peer_id: int) -> void:
 	_voice_playbacks.erase(peer_id)
 	_voice_window_started_at.erase(peer_id)
 	_voice_packets_in_window.erase(peer_id)
+	_voice_bytes_in_window.erase(peer_id)
+	_voice_over_budget_periods.erase(peer_id)
+	# The chat cooldown map is keyed by peer id too. Leaving it behind would
+	# grow it by one entry per disconnect for the whole lifetime of the
+	# server.
+	_last_chat_at.erase(peer_id)
 	var player := _voice_players.get(peer_id) as AudioStreamPlayer
 	_voice_players.erase(peer_id)
 	if player != null:
@@ -239,11 +259,61 @@ func _can_relay_voice(peer_id: int) -> bool:
 	if now - window_started >= 1000:
 		window_started = now
 		packet_count = 0
+		_voice_bytes_in_window[peer_id] = 0
 	if packet_count >= MAX_VOICE_PACKETS_PER_SECOND:
 		return false
 	_voice_window_started_at[peer_id] = window_started
 	_voice_packets_in_window[peer_id] = packet_count + 1
 	return true
+
+
+## Tracks how many voice bytes a peer relayed during the current one-second
+## window and reports whether the peer stays inside the server's byte budget.
+##
+## The packet-rate limit alone does not bound bandwidth: a peer that keeps
+## sending full-size packets stays under the packet cap while still pushing
+## tens of KB/s through the server, and the server re-broadcasts every byte to
+## every other player. This budget bounds that cost directly.
+func _is_within_voice_byte_budget(peer_id: int, byte_count: int) -> bool:
+	var now := Time.get_ticks_msec()
+	var window_started: int = _voice_window_started_at.get(peer_id, now)
+	var bytes_in_window: int = _voice_bytes_in_window.get(peer_id, 0)
+	if now - window_started >= 1000:
+		window_started = now
+		bytes_in_window = 0
+	_voice_window_started_at[peer_id] = window_started
+	_voice_bytes_in_window[peer_id] = bytes_in_window + byte_count
+	return bytes_in_window + byte_count <= MAX_VOICE_BYTES_PER_SECOND
+
+
+## Records that a peer exceeded the voice byte budget. A peer that stays over
+## budget for several consecutive windows is disconnected so it cannot starve
+## the server and every other player.
+func _register_voice_budget_violation(peer_id: int) -> void:
+	var periods: int = _voice_over_budget_periods.get(peer_id, 0) + 1
+	_voice_over_budget_periods[peer_id] = periods
+	if periods < VOICE_FLOOD_GRACE_PERIODS:
+		return
+	_voice_over_budget_periods.erase(peer_id)
+	push_warning(
+		"CommunicationManager: disconnecting peer %d for flooding the voice relay"
+			% peer_id
+	)
+	_disconnect_flooding_peer(peer_id)
+
+
+## Removes a flooding peer from the session. The dedicated server closes the
+## peer's transport; a hosted game asks ENet to drop the connection.
+func _disconnect_flooding_peer(peer_id: int) -> void:
+	var peer := multiplayer.multiplayer_peer
+	if peer == null:
+		return
+	if peer is ENetMultiplayerPeer:
+		(peer as ENetMultiplayerPeer).close()
+		return
+	# Fall back to Godot's generic disconnect path for other peer types.
+	multiplayer.multiplayer_peer = null
+	_remove_voice_peer(peer_id)
 
 
 func _refresh_input_frame_count() -> void:

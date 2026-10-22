@@ -4,7 +4,7 @@ extends CharacterBody3D
 @export var character_profile: CharacterProfile
 
 @export_category("Movement")
-@export var speed := 2.3
+@export var speed := 1.0
 @export var run_speed := 5.0
 @export var walk_acceleration := 12.0
 @export var run_acceleration := 8.0
@@ -52,6 +52,18 @@ extends CharacterBody3D
 @export_range(10.0, 180.0, 1.0) var punch_half_angle := 70.0
 @export_range(0.1, 2.0, 0.05) var punch_cooldown := 0.45
 @export_range(0.0, 5.0, 0.1) var respawn_protection := 1.0
+## Extra distance a server-validated player may travel beyond the distance
+## its own movement explains. Covers replication jitter, where the server can
+## receive a position that is one replication interval ahead of the last one
+## it accepted.
+@export_range(0.1, 10.0, 0.1) var server_movement_slack := 1.5
+## Longest stretch of movement the server credits when deciding whether a
+## position is reachable. The credit is capped so a client cannot wait for a
+## slow server and then claim a position it never travelled to.
+@export_range(0.05, 2.0, 0.05) var server_max_movement_window := 0.25
+## Maximum vertical rise a server-validated player may gain in one check. A
+## jump cannot exceed this, so a client cannot fly upwards.
+@export_range(0.1, 10.0, 0.1) var server_max_vertical_step := 1.0
 
 var gravity: float = ProjectSettings.get_setting(
 	"physics/3d/default_gravity"
@@ -80,6 +92,14 @@ var health := 100:
 			_update_health_display()
 var _server_last_attack_msec := -1000000
 var _server_invulnerable_until_msec := 0
+## Last position the server accepted for this player. Used to reject movement
+## that is faster than any legitimate speed, which stops a client from
+## teleporting to reach a target for a punch.
+var _server_validated_position := Vector3.ZERO
+var _server_has_validated_position := false
+## Wall-clock time of the last accepted position, used to derive how far a
+## player could legitimately have travelled since then.
+var _server_validated_at_msec := 0
 ## Current animation name replicated to all peers via [MultiplayerSynchronizer].
 ## Updated automatically by [method _play_character_animation].
 ## Remote players read this in [method _process] to drive their local animation.
@@ -107,9 +127,18 @@ var animation_tree: AnimationTree
 
 var profile_index := 0:
 	set(value):
-		profile_index = value
-		if value >= 0 and value < CharacterRegistry.profiles.size():
-			character_profile = CharacterRegistry.profiles[value]
+		# The value replicates from the owning client, so clamp it to a real
+		# profile instead of trusting it. An out-of-range index would
+		# otherwise leave character_profile unset or point at the wrong model.
+		if CharacterRegistry.profiles.is_empty():
+			# The registry has not populated yet. Keep the raw value so a
+			# legitimate selection is not lost, and resolve the profile once
+			# the registry is ready.
+			profile_index = value
+			return
+		var clamped := clampi(value, 0, CharacterRegistry.profiles.size() - 1)
+		profile_index = clamped
+		character_profile = CharacterRegistry.profiles[clamped]
 
 
 func _enter_tree() -> void:
@@ -152,6 +181,8 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	var initial_camera_transform := head.global_transform
 	head.top_level = true
+	_server_validated_position = global_position
+	_server_has_validated_position = true
 	head.global_transform = initial_camera_transform
 	camera_yaw = head.global_rotation.y
 	camera_pitch = head.global_rotation.x
@@ -728,9 +759,15 @@ func _server_try_punch() -> void:
 		return
 	_server_last_attack_msec = now
 
-	var forward := -global_transform.basis.z
-	forward.y = 0.0
-	forward = forward.normalized()
+	# Position and rotation replicate from the owning client, so a client
+	# could otherwise teleport next to a target and land server-resolved
+	# damage. Only accept the strike when the server considers the attacker's
+	# position reachable.
+	var attacker_position := _server_trusted_position()
+	var attacker_forward := _server_validated_forward()
+	if not attacker_forward.is_finite():
+		return
+
 	var minimum_facing := cos(deg_to_rad(punch_half_angle))
 	var closest_target: Node3D = null
 	var closest_distance := INF
@@ -740,20 +777,123 @@ func _server_try_punch() -> void:
 		var target := candidate as Node3D
 		if target == null or int(target.get("health")) <= 0:
 			continue
-		var to_target := target.global_position - global_position
+		# The target is measured from the position the server trusts for it,
+		# so a target cannot be dragged into reach by its own owner.
+		var trusted_target_position: Vector3 = target.call(
+			"_server_trusted_position"
+		)
+		var to_target := trusted_target_position - attacker_position
 		if absf(to_target.y) > 1.4:
 			continue
 		to_target.y = 0.0
 		var distance := to_target.length()
 		if distance <= 0.001 or distance > punch_range:
 			continue
-		if forward.dot(to_target / distance) < minimum_facing:
+		if attacker_forward.dot(to_target / distance) < minimum_facing:
 			continue
 		if distance < closest_distance:
 			closest_distance = distance
 			closest_target = target
 	if closest_target != null:
 		closest_target.call("_server_take_damage", punch_damage)
+
+
+## Returns the horizontal forward direction derived from the server's
+## validated rotation, or an invalid vector when it cannot be determined.
+func _server_validated_forward() -> Vector3:
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.000001:
+		return Vector3.ZERO
+	return forward.normalized()
+
+
+## Resets the server's validated position to the player's current position.
+##
+## Called by the server when a player spawns or respawns, so the new position
+## is trusted as the starting point of the next movement check.
+func _server_reset_validated_position() -> void:
+	_server_validated_position = global_position
+	_server_has_validated_position = true
+	_server_validated_at_msec = Time.get_ticks_msec()
+
+
+## Advances the server's validated position for this player when the
+## replicated movement stays within a reachable distance.
+##
+## Called on the server for every player it tracks. Returns [code]true[/code]
+## when the movement was accepted.
+##
+## The allowed distance is derived from elapsed wall-clock time, not from the
+## physics tick, because replicated positions arrive in bursts rather than
+## one update per tick. A tick-based budget would reject legitimate
+## movement whenever several updates land between two server ticks.
+##
+## The node's own position is never rewritten here. The replicated position
+## stays authoritative for rendering and collision, while this validated copy
+## is used for server-side hit detection. A teleport therefore leaves the
+## validated copy behind, and the melee range check fails.
+func _server_validate_movement(delta: float) -> bool:
+	if not multiplayer.is_server():
+		return true
+	var current := global_position
+	var now := Time.get_ticks_msec()
+	if not _server_has_validated_position:
+		_server_validated_position = current
+		_server_has_validated_position = true
+		_server_validated_at_msec = now
+		return true
+
+	# The server owns its own player, so that position is server-authored and
+	# always trusted. Only positions that arrive from a remote client are
+	# measured against the distance the player could have travelled.
+	if get_multiplayer_authority() == multiplayer.get_unique_id():
+		_server_validated_position = current
+		_server_validated_at_msec = now
+		return true
+
+	var elapsed_seconds := float(maxi(now - _server_validated_at_msec, 0)) / 1000.0
+	var offset := current - _server_validated_position
+	var horizontal := Vector3(offset.x, 0.0, offset.z)
+	var horizontal_distance := horizontal.length()
+	# Only the time the player has actually been moving counts towards the
+	# budget, and that credit is capped. Idle time is not credited, so a
+	# client cannot teleport and then wait for the budget to grow until the
+	# new position looks reachable.
+	var credited_seconds := minf(elapsed_seconds, server_max_movement_window)
+	var maximum_horizontal := (
+		run_speed * credited_seconds + server_movement_slack
+	)
+	if horizontal_distance > maximum_horizontal:
+		# Not reachable. The validated position and its timestamp stay where
+		# they are, so waiting does not make the claim valid.
+		return false
+	# A jump cannot climb faster than the configured gravity allows, so a
+	# large upward step in one interval is not legitimate.
+	var maximum_vertical := (
+		absf(gravity) * credited_seconds * credited_seconds * 0.5
+			+ server_max_vertical_step
+	)
+	if offset.y > maximum_vertical:
+		return false
+
+	if horizontal_distance > 0.001 or absf(offset.y) > 0.001:
+		# The player moved, so the next check measures from now. Idle time is
+		# not credited as movement.
+		_server_validated_at_msec = now
+	_server_validated_position = current
+	return true
+
+
+## Returns the position the server trusts for this player.
+##
+## For a remote client that is the last position the server accepted, so a
+## teleport stays behind. For a player the server owns it is the current
+## position, which the server wrote itself.
+func _server_trusted_position() -> Vector3:
+	if not _server_has_validated_position:
+		return global_position
+	return _server_validated_position
 
 
 func _server_take_damage(amount: int) -> void:
@@ -776,6 +916,10 @@ func server_respawn(respawn_position: Vector3) -> void:
 	velocity = Vector3.ZERO
 	current_move_speed = 0.0
 	position = respawn_position
+	# The respawn position is server-chosen, so the validated copy must follow
+	# it. Otherwise the next movement check would treat the jump from the
+	# death position as an impossible teleport.
+	_server_reset_validated_position()
 	_server_invulnerable_until_msec = (
 		Time.get_ticks_msec() + roundi(respawn_protection * 1000.0)
 	)

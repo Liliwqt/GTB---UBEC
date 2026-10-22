@@ -29,3 +29,14 @@ third_party/
 
 # Tool scripts (offline utilities, not runtime)
 tools/
+
+# Editor / IDE local settings (may contain absolute user paths)
+.vscode/
+.idea/
+
+# Large DCC source maps staged for import (not runtime assets)
+imports/MAP/
+
+# Local server address override (keeps the public endpoint out of source)
+server_address.cfg
+server_address.local.cfg

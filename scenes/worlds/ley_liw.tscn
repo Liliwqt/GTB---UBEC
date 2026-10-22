@@ -13,25 +13,6 @@ ambient_light_color = Color(0.82, 0.86, 0.92, 1)
 ambient_light_energy = 0.85
 reflected_light_source = 2
 
-[sub_resource type="StandardMaterial3D" id="Material_road"]
-albedo_color = Color(0.075, 0.08, 0.085, 1)
-roughness = 0.92
-
-[sub_resource type="BoxMesh" id="Mesh_road"]
-material = SubResource("Material_road")
-size = Vector3(40, 0.2, 8)
-
-[sub_resource type="BoxShape3D" id="Shape_road"]
-size = Vector3(40, 0.2, 8)
-
-[sub_resource type="StandardMaterial3D" id="Material_marking"]
-albedo_color = Color(0.92, 0.72, 0.12, 1)
-roughness = 0.8
-
-[sub_resource type="BoxMesh" id="Mesh_marking"]
-material = SubResource("Material_marking")
-size = Vector3(40, 0.025, 0.12)
-
 [node name="LeyLiw" type="Node3D" unique_id=630428040]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1001382080]
@@ -45,23 +26,6 @@ light_indirect_energy = 1.276
 light_volumetric_fog_energy = 2.379
 light_specular = 2.563
 shadow_enabled = true
-
-[node name="TemporaryRoad" type="Node3D" parent="." unique_id=1387247552]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 11)
-
-[node name="RoadSurface" type="MeshInstance3D" parent="TemporaryRoad" unique_id=1323831062]
-transform = Transform3D(-0.08578838, 0, -37.106846, 0, 1.0146359, 0, 5.85362, 0, -0.5438235, -0.8194828, -0.18838716, -17.427528)
-mesh = SubResource("Mesh_road")
-
-[node name="RoadCollision" type="StaticBody3D" parent="TemporaryRoad" unique_id=648465851]
-transform = Transform3D(-0.08455088, 0, -36.571587, 0, 1, 0, 5.769182, 0, -0.5359789, -0.43069553, -7.450581e-09, -16.662624)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="TemporaryRoad/RoadCollision" unique_id=807353149]
-shape = SubResource("Shape_road")
-
-[node name="CenterMarking" type="MeshInstance3D" parent="TemporaryRoad" unique_id=205876701]
-transform = Transform3D(-0.014654037, 0, -0.99989265, 0, 1, 0, 0.99989265, 0, -0.014654037, -42.656902, 0.113, -16.66621)
-mesh = SubResource("Mesh_marking")
 
 [node name="SpawnPoint" type="Node3D" parent="." unique_id=999000222]
 transform = Transform3D(-0.014654037, 0, -0.99989265, 0, 1, 0, 0.99989265, 0, -0.014654037, -7.802637, 1.0115037, -4.897094)
@@ -99,4 +63,4 @@ spawn_path = NodePath("../NPCs")
 script = ExtResource("8_npc_manager")
 
 [node name="ArawanMarketCourt" parent="." unique_id=1874727976 instance=ExtResource("5_environment")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.041478157, -0.16830993, -18.674946)
+transform = Transform3D(1.0377779, 0, 0, 0, 1.0377779, 0, 0, 0, 1.0377779, -4.382476, -0.16834044, 516.2969)

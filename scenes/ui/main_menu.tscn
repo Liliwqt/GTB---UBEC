@@ -89,39 +89,19 @@ layout_mode = 2
 [node name="HSeparator2" type="HSeparator" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1533862030]
 layout_mode = 2
 
-[node name="SingleplayerButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1265196198]
+[node name="PlayButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1265196198]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Play Singleplayer"
+theme_override_font_sizes/font_size = 18
+text = "Play Open World"
 
-[node name="HostButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=407199322]
+[node name="OfflineButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Host Server (Port 7777)"
-
-[node name="JoinContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=897219619]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="IPLineEdit" type="LineEdit" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/JoinContainer" unique_id=1166784107]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "127.0.0.1"
-placeholder_text = "IP Address (e.g. 192.168.1.5)"
-alignment = 1
-
-[node name="JoinButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/JoinContainer" unique_id=442974638]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(110, 40)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "Join Game"
+theme_override_font_sizes/font_size = 14
+text = "Offline Singleplayer"
 
 [node name="HSeparator3" type="HSeparator" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=2056912519]
 layout_mode = 2
@@ -133,11 +113,3 @@ theme_override_colors/font_color = Color(0.9, 0.75, 0.3, 1)
 theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 autowrap_mode = 2
-
-[node name="LocalIPLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=865855435]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.55, 0.65, 1)
-theme_override_font_sizes/font_size = 12
-text = "Your LAN IP: 127.0.0.1"
-horizontal_alignment = 1

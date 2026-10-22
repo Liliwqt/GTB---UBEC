@@ -1,0 +1,21 @@
+; Example server address configuration for LeyLiw.
+;
+; Copy this file to `server_address.cfg` (which is gitignored) and fill in the
+; public address of the game server. `server_address.cfg` is picked up by
+; `res://server_address.cfg` at runtime and can be packaged into client
+; exports via the export preset `include_filter`.
+;
+; Alternatively, set the `LEYLIW_SERVER_ADDRESS` environment variable, which
+; takes priority over this file, or pass `--server-address=<host>` on the
+; command line for local testing.
+;
+; The address must be the server's PUBLIC IPv4 address or DNS name. Do not use
+; a private/LAN address such as 192.168.x.x or 10.x.x.x.
+
+[server]
+
+; Hostname or IPv4 address of the dedicated server.
+address=""
+
+; UDP port. Must match the dedicated server's `--port` argument.
+port=7777

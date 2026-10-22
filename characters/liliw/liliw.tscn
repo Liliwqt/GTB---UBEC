@@ -9,6 +9,7 @@ radius = 0.23339844
 height = 1.2415283
 
 [node name="Player" unique_id=1691039467 instance=ExtResource("1_base")]
+profile_index = 1
 
 [node name="CharacterModel" parent="ModelRoot" parent_id_path=PackedInt32Array(1546811126) index="0" unique_id=967578702 instance=ExtResource("2_model")]
 transform = Transform3D(-1.0580522, 0, 0.038660657, 0, 1.123925, 0, -0.03403478, 0, -1.2018646, -0.01, 0.16, 0.775)
